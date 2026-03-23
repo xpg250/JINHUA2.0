@@ -111,7 +111,10 @@ io.on('connection', (socket) => {
 
 function handleJoin(socket, { name }) {
     if (!room) room = createRoom();
-    if (room.phase !== 'waiting') return socket.emit('error_msg', '游戏进行中，请稍候');
+    // 【修改】允许在游戏进行中加入，但设置为等待状态
+    if (room.phase !== 'waiting' && room.phase !== 'playing') {
+        return socket.emit('error_msg', '房间状态异常，请稍候');
+    }
     if (room.players.find(p => p.id === socket.id)) return socket.emit('error_msg', '你已在房间中');
     if (room.players.length >= MAX_PLAYERS) return socket.emit('error_msg', '房间已满');
 
@@ -120,7 +123,9 @@ function handleJoin(socket, { name }) {
     const player = {
         id: socket.id,
         name: (name || '玩家').substring(0, 8),
-        chips: 0, cards: [], status: 'active',
+        chips: 0, cards: [],
+        // 【修改】根据当前阶段设置初始状态：游戏中则为'waiting'，否则为'active'
+        status: room.phase === 'playing' ? 'waiting' : 'active',
         bet: 0, handType: null, hasLooked: false,
         baoxi: false, firstRoundAction: true,
         headsUpBetCount: 0
@@ -129,6 +134,11 @@ function handleJoin(socket, { name }) {
     socket.join(ROOM_ID);
     socket.emit('joined', { playerIndex: room.players.length - 1 });
     broadcastWaiting();
+    // 【新增】如果游戏正在进行中，立即向新加入的玩家广播当前游戏状态，以便其看到牌桌
+    if (room.phase === 'playing') {
+        const state = buildStateForPlayer(player);
+        socket.emit('state_update', state);
+    }
 }
 
 function handleDisconnect(socket) {
@@ -148,10 +158,14 @@ function handleDisconnect(socket) {
     }
 
     if (room.phase === 'playing') {
-        if (getActivePlayers().length <= 1) handleEndOfRound(getActivePlayers()[0]);
-        else if (room.currentPlayerIndex === idx) {
-            room.currentPlayerIndex = nextActiveFrom(idx > 0 ? idx - 1 : room.players.length - 1);
-            broadcastState();
+        const activePlayers = getActivePlayers();
+        // 【修改】检查离开的是否为活跃玩家
+        if (room.players[idx].status === 'active') {
+            if (activePlayers.length <= 1) handleEndOfRound(activePlayers[0] || null);
+            else if (room.currentPlayerIndex === idx) {
+                room.currentPlayerIndex = nextActiveFrom(idx > 0 ? idx - 1 : room.players.length - 1);
+                broadcastState();
+            }
         }
     } else {
         broadcastWaiting();
@@ -159,10 +173,12 @@ function handleDisconnect(socket) {
 }
 
 function broadcastWaiting() {
+    // 【修改】广播等待列表时，包括所有玩家（活跃和等待），并标明状态
     io.to(ROOM_ID).emit('waiting', {
         players: room.players.map(p => ({
             name: p.name,
-            isHost: p.id === room.hostId
+            isHost: p.id === room.hostId,
+            status: p.status // 'active' 或 'waiting'
         })),
     });
 }
@@ -171,12 +187,14 @@ function broadcastWaiting() {
 
 function handleStartGame(socket) {
     if (!room) return socket.emit('error_msg', '房间不存在');
-    if (room.players.length < 2) return socket.emit('error_msg', '至少需要2名玩家');
+    // 【修改】计算可参与游戏的玩家数量（状态为active或waiting）
+    const availablePlayers = room.players.filter(p => p.status === 'active' || p.status === 'waiting');
+    if (availablePlayers.length < 2) return socket.emit('error_msg', '至少需要2名可参与的玩家');
 
     const hostExists = room.players.some(p => p.id === room.hostId);
     const isHost = socket.id === room.hostId;
 
-    if (room.phase === 'waiting') {
+    if (room.phase === 'waiting' || room.phase === 'playing') {
         if (!isHost) return socket.emit('error_msg', '只有房主能开始游戏');
     } else if (room.phase === 'gameover') {
         if (!isHost && hostExists) return socket.emit('error_msg', '只有房主能开始游戏');
@@ -186,6 +204,13 @@ function handleStartGame(socket) {
     } else {
         return socket.emit('error_msg', '游戏进行中');
     }
+
+    // 【修改】将所有等待状态的玩家转换为活跃状态，以便参与新一局
+    room.players.forEach(p => {
+        if (p.status === 'waiting') {
+            p.status = 'active';
+        }
+    });
 
     room.phase = 'playing';
     room.round = 1;
@@ -198,10 +223,11 @@ function handleStartGame(socket) {
     shuffle(room.deck);
 
     room.players.forEach(p => {
-        p.cards = []; p.status = 'active'; p.bet = 0;
+        p.cards = []; p.bet = 0;
         p.handType = null; p.hasLooked = false;
         p.baoxi = false; p.firstRoundAction = true;
         p.headsUpBetCount = 0;
+        // 确保所有玩家状态为active（已在上方重置）
     });
 
     room.players.forEach(p => {
@@ -252,6 +278,8 @@ function handleAction(socket, data) {
     if (!room || room.phase !== 'playing') return;
     const cp = room.players[room.currentPlayerIndex];
     if (!cp || cp.id !== socket.id) return socket.emit('error_msg', '不是你的回合');
+    // 【新增】安全检查：确保当前玩家状态为active
+    if (cp.status !== 'active') return socket.emit('error_msg', '你当前无法操作');
 
     if (room.currentPlayerIndex === room.dealerIndex) {
         room.dealerActedThisRound = true;
@@ -495,22 +523,28 @@ function buildStateForPlayer(viewer) {
         dealerIndex: room.dealerIndex,
         myIndex: viewerIndex,
         hostId: room.hostId,
-        hostName: hostPlayer ? hostPlayer.name : '',   // 【新增】房主名称
+        hostName: hostPlayer ? hostPlayer.name : '',
+        // 【修改】在状态中传递玩家状态，前端可用于显示（如“等待中”）
         players: room.players.map((p, i) => {
             const showCards = (p.hasLooked && i === viewerIndex) || (room.phase === 'gameover');
             return {
                 name: p.name,
                 chips: p.chips,
                 bet: p.bet,
-                status: p.status,
+                status: p.status, // 'active', 'folded', 'waiting'
                 hasLooked: p.hasLooked,
                 baoxi: p.baoxi,
                 cards: showCards ? p.cards : [],
                 handDesc: (showCards && p.handType) ? p.handType.desc : ''
             };
         }),
-        availableActions: room.currentPlayerIndex === viewerIndex ? getAvailableActions(viewer) : [],
-        compareTargets: room.currentPlayerIndex === viewerIndex ? getCompareTargets(viewer) : []
+        // 【修改】只有状态为active且轮到自己时才提供可用操作
+        availableActions: (room.currentPlayerIndex === viewerIndex && viewer.status === 'active')
+            ? getAvailableActions(viewer)
+            : [],
+        compareTargets: (room.currentPlayerIndex === viewerIndex && viewer.status === 'active')
+            ? getCompareTargets(viewer)
+            : []
     };
 }
 
