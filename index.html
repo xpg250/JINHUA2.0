@@ -772,6 +772,23 @@
                 });
                 if (data.players.length >= 2 && isHost) startBtn.classList.remove('hidden');
                 else startBtn.classList.add('hidden');
+
+                // 【关键修复】如果当前在游戏界面且游戏结束，立即更新等待提示
+                if (!gameContainer.classList.contains('hidden') && gameState && gameState.phase === 'gameover') {
+                    updateWaitingHostDisplay();
+                }
+            });
+
+            // 【关键修复】监听房主变更事件
+            socket.on('host_changed', function(data) {
+                hostName = data.newHostName;
+                isHost = (data.newHostId === mySocketId);
+                console.log('房主变更为: ' + hostName);
+
+                // 如果当前在游戏界面且游戏结束，立即更新等待提示
+                if (!gameContainer.classList.contains('hidden') && gameState && gameState.phase === 'gameover') {
+                    updateWaitingHostDisplay();
+                }
             });
 
             startBtn.onclick = function() { socket.emit('start_game'); };
@@ -799,14 +816,7 @@
 
                 // 【关键修复】在游戏结束阶段，根据isHost状态控制按钮显示
                 if (state.phase === 'gameover') {
-                    if (isHost) {
-                        restartBtn.classList.remove('hidden');
-                        waitingHostMsg.classList.add('hidden');
-                    } else {
-                        restartBtn.classList.add('hidden');
-                        waitingHostMsg.textContent = '等待 ' + hostName + ' 开始';
-                        waitingHostMsg.classList.remove('hidden');
-                    }
+                    updateWaitingHostDisplay();
                 } else {
                     // 非gameover阶段，隐藏这些元素
                     restartBtn.classList.add('hidden');
@@ -870,6 +880,18 @@
                 $('connStatus').style.color = '#27ae60';
                 socket.emit('join', { name: nameInput.value.trim(), room: 'main' });
             });
+        }
+
+        // 【关键修复】统一更新等待房主显示的函数
+        function updateWaitingHostDisplay() {
+            if (isHost) {
+                restartBtn.classList.remove('hidden');
+                waitingHostMsg.classList.add('hidden');
+            } else {
+                restartBtn.classList.add('hidden');
+                waitingHostMsg.textContent = '等待 ' + hostName + ' 开始';
+                waitingHostMsg.classList.remove('hidden');
+            }
         }
 
         function renderState(state) {
