@@ -476,7 +476,7 @@ function buildStateForPlayer(viewer) {
             // 【关键修改】只有在以下情况才显示牌：
             // 1. 当前查看者是牌的主人（自己看自己的牌）
             // 2. 游戏结束（摊牌阶段）
-            const showCards = (i === viewerIndex) || (room.phase === 'gameover');
+            const showCards = (p.hasLooked && i === viewerIndex) || (room.phase === 'gameover');
 
             return {
                 name: p.name,
