@@ -77,6 +77,7 @@ const MAX_ROUNDS = 20;
 
 let room = null;
 
+// 【修改】增加 dealerActedThisRound 标记
 function createRoom() {
     return {
         players: [], deck: [], pot: 0,
@@ -85,7 +86,7 @@ function createRoom() {
         round: 0, phase: 'waiting',
         lastWinner: -1, huoxiPlayerId: -1,
         hostId: null,
-        dealerActedThisRound: false
+        dealerActedThisRound: false  // 【新增】庄家本轮是否已行动
     };
 }
 
@@ -192,7 +193,7 @@ function handleStartGame(socket) {
     room.hasRaised = false;
     room.baseBet = INITIAL_BASE_BET;
     room.pot = 0;
-    room.dealerActedThisRound = false;
+    room.dealerActedThisRound = false;  // 【新增】重置标记
 
     room.deck = createDeck();
     shuffle(room.deck);
@@ -253,6 +254,7 @@ function handleAction(socket, data) {
     const cp = room.players[room.currentPlayerIndex];
     if (!cp || cp.id !== socket.id) return socket.emit('error_msg', '不是你的回合');
 
+    // 【新增】标记庄家已行动
     if (room.currentPlayerIndex === room.dealerIndex) {
         room.dealerActedThisRound = true;
     }
@@ -282,6 +284,7 @@ function handleAction(socket, data) {
             p.chips -= amt; p.bet += amt; room.pot += amt;
             if (getActivePlayers().length === 2) p.headsUpBetCount++;
 
+            // 报喜条件：第一轮且未看牌时跟注
             if (room.round === 1 && !p.hasLooked && p.firstRoundAction) {
                 p.baoxi = true;
                 addLog(p.name, '跟注 ' + amt + '（报喜！）', 'baoxi');
@@ -299,6 +302,7 @@ function handleAction(socket, data) {
             p.chips -= amt; p.bet += amt; room.pot += amt;
             if (getActivePlayers().length === 2) p.headsUpBetCount++;
 
+            // 报喜条件：第一轮且未看牌时加注
             if (room.round === 1 && !p.hasLooked && p.firstRoundAction) {
                 p.baoxi = true;
                 addLog(p.name, '加注 ' + amt + '（报喜！）', 'baoxi');
@@ -355,9 +359,11 @@ function getCompareCost(player) {
     return player.hasLooked ? room.baseBet * 2 : room.baseBet;
 }
 
+// 【修改】轮次递增逻辑，保证庄家在 round 1 内行动
 function nextTurn() {
     room.currentPlayerIndex = nextActiveFrom(room.currentPlayerIndex);
 
+    // 只有庄家已行动过，且回到庄家之后的第一个活跃玩家时，才递增轮次
     if (room.dealerActedThisRound) {
         const firstActiveAfterDealer = nextActiveFrom(room.dealerIndex);
         if (room.currentPlayerIndex <= firstActiveAfterDealer) {
@@ -416,6 +422,7 @@ function checkHuoxi(winner) {
         const bonus = winner.handType.type === HAND_TYPES.STRAIGHT_FLUSH ? 20 : 30;
         const typeName = winner.handType.type === HAND_TYPES.STRAIGHT_FLUSH ? '顺金' : '豹子';
 
+        // 向所有其他玩家收取喜钱（包括已弃牌的）
         room.players.forEach(p => {
             if (p.id !== winner.id) {
                 p.chips -= bonus;
@@ -485,7 +492,6 @@ function broadcastState() {
 
 function buildStateForPlayer(viewer) {
     const viewerIndex = room.players.indexOf(viewer);
-    const hostPlayer = room.players.find(p => p.id === room.hostId);
     return {
         pot: room.pot,
         baseBet: room.baseBet,
@@ -495,7 +501,6 @@ function buildStateForPlayer(viewer) {
         dealerIndex: room.dealerIndex,
         myIndex: viewerIndex,
         hostId: room.hostId,
-        hostName: hostPlayer ? hostPlayer.name : '',   // 【新增】房主名称
         players: room.players.map((p, i) => {
             const showCards = (p.hasLooked && i === viewerIndex) || (room.phase === 'gameover');
             return {
