@@ -227,6 +227,9 @@ function handleDisconnect(socket) {
             broadcastState();
         }
     } else {
+        // 【关键修复】无论什么阶段，都广播状态更新，让前端获取最新房主信息
+        broadcastState();
+        // 同时广播等待列表，确保加入界面也能更新
         broadcastWaiting();
     }
 }
