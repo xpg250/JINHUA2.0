@@ -77,6 +77,7 @@ const MAX_ROUNDS = 20;
 
 let room = null;
 
+// 【修改】增加 dealerActedThisRound 标记
 function createRoom() {
     return {
         players: [], deck: [], pot: 0,
@@ -84,7 +85,8 @@ function createRoom() {
         currentPlayerIndex: -1, dealerIndex: 0,
         round: 0, phase: 'waiting',
         lastWinner: -1, huoxiPlayerId: -1,
-        hostId: null
+        hostId: null,
+        dealerActedThisRound: false  // 【新增】庄家本轮是否已行动
     };
 }
 
@@ -191,6 +193,7 @@ function handleStartGame(socket) {
     room.hasRaised = false;
     room.baseBet = INITIAL_BASE_BET;
     room.pot = 0;
+    room.dealerActedThisRound = false;  // 【新增】重置标记
 
     room.deck = createDeck();
     shuffle(room.deck);
@@ -225,7 +228,6 @@ function handleStartGame(socket) {
     addLog('系统', '游戏开始，每人下底注' + INITIAL_BASE_BET + '元');
 }
 
-// 【修改】collectAnte 函数，增加调试日志
 function collectAnte() {
     console.log('[收取底注] huoxiPlayerId:', room.huoxiPlayerId);
 
@@ -252,6 +254,11 @@ function handleAction(socket, data) {
     const cp = room.players[room.currentPlayerIndex];
     if (!cp || cp.id !== socket.id) return socket.emit('error_msg', '不是你的回合');
 
+    // 【新增】标记庄家已行动
+    if (room.currentPlayerIndex === room.dealerIndex) {
+        room.dealerActedThisRound = true;
+    }
+
     const { action, target } = data;
     const p = cp;
 
@@ -272,7 +279,6 @@ function handleAction(socket, data) {
             broadcastState();
             return;
 
-        // 【修改】call 操作中的报喜逻辑
         case 'call': {
             const amt = p.hasLooked ? room.baseBet * 2 : room.baseBet;
             p.chips -= amt; p.bet += amt; room.pot += amt;
@@ -290,7 +296,6 @@ function handleAction(socket, data) {
             break;
         }
 
-        // 【修改】raise 操作中的报喜逻辑
         case 'raise': {
             room.baseBet = RAISED_BASE_BET; room.hasRaised = true;
             const amt = p.hasLooked ? room.baseBet * 2 : room.baseBet;
@@ -354,9 +359,20 @@ function getCompareCost(player) {
     return player.hasLooked ? room.baseBet * 2 : room.baseBet;
 }
 
+// 【修改】轮次递增逻辑，保证庄家在 round 1 内行动
 function nextTurn() {
     room.currentPlayerIndex = nextActiveFrom(room.currentPlayerIndex);
-    if (room.currentPlayerIndex <= room.dealerIndex || room.currentPlayerIndex === 0) room.round++;
+
+    // 只有庄家已行动过，且回到庄家之后的第一个活跃玩家时，才递增轮次
+    if (room.dealerActedThisRound) {
+        const firstActiveAfterDealer = nextActiveFrom(room.dealerIndex);
+        if (room.currentPlayerIndex <= firstActiveAfterDealer) {
+            room.round++;
+            room.dealerActedThisRound = false;
+            console.log('[轮次递增] round:', room.round);
+        }
+    }
+
     if (room.round > MAX_ROUNDS) { forceShowdown(); return; }
     broadcastState();
 }
@@ -366,10 +382,7 @@ function handleEndOfRound(winner) {
     if (winner) {
         winner.chips += room.pot;
         room.lastWinner = room.players.indexOf(winner);
-
-        // 【关键】检查是否获喜
         checkHuoxi(winner);
-
         addLog(winner.name, '赢得 ' + room.pot + ' 筹码（' + winner.handType.desc + '）', 'call');
         io.to(ROOM_ID).emit('game_over', {
             winnerIndex: room.players.indexOf(winner),
@@ -389,10 +402,7 @@ function forceShowdown() {
     if (winner) {
         winner.chips += room.pot;
         room.lastWinner = room.players.indexOf(winner);
-
-        // 【关键】检查是否获喜
         checkHuoxi(winner);
-
         addLog(winner.name, '赢得 ' + room.pot + ' 筹码', 'call');
         io.to(ROOM_ID).emit('game_over', {
             winnerIndex: room.players.indexOf(winner),
@@ -404,7 +414,6 @@ function forceShowdown() {
     broadcastState();
 }
 
-// 【修改】checkHuoxi 函数，移除 status 检查
 function checkHuoxi(winner) {
     console.log('[获喜检查] 赢家:', winner.name, 'baoxi:', winner.baoxi, 'handType:', winner.handType?.desc);
 
@@ -413,7 +422,7 @@ function checkHuoxi(winner) {
         const bonus = winner.handType.type === HAND_TYPES.STRAIGHT_FLUSH ? 20 : 30;
         const typeName = winner.handType.type === HAND_TYPES.STRAIGHT_FLUSH ? '顺金' : '豹子';
 
-        // 【修改】向所有其他玩家收取喜钱，包括弃牌的玩家
+        // 向所有其他玩家收取喜钱（包括已弃牌的）
         room.players.forEach(p => {
             if (p.id !== winner.id) {
                 p.chips -= bonus;
