@@ -787,7 +787,31 @@
 
             socket.on('state_update', function(state) {
                 gameState = state;
+                // 【关键修复】根据服务器发送的host信息更新本地isHost状态
+                if (state.hostId && mySocketId) {
+                    isHost = (state.hostId === mySocketId);
+                }
+                if (state.hostName) {
+                    hostName = state.hostName;
+                }
+
                 renderState(state);
+
+                // 【关键修复】在游戏结束阶段，根据isHost状态控制按钮显示
+                if (state.phase === 'gameover') {
+                    if (isHost) {
+                        restartBtn.classList.remove('hidden');
+                        waitingHostMsg.classList.add('hidden');
+                    } else {
+                        restartBtn.classList.add('hidden');
+                        waitingHostMsg.textContent = '等待 ' + hostName + ' 开始';
+                        waitingHostMsg.classList.remove('hidden');
+                    }
+                } else {
+                    // 非gameover阶段，隐藏这些元素
+                    restartBtn.classList.add('hidden');
+                    waitingHostMsg.classList.add('hidden');
+                }
             });
 
             socket.on('your_cards', function(data) {
@@ -813,14 +837,8 @@
 
             socket.on('game_over', function(data) {
                 showMessage(data.winnerName + ' 赢了 ' + data.pot, function() {
-                    if (isHost) {
-                        restartBtn.classList.remove('hidden');
-                        waitingHostMsg.classList.add('hidden');
-                    } else {
-                        restartBtn.classList.add('hidden');
-                        waitingHostMsg.textContent = '等待 ' + hostName + ' 开始';
-                        waitingHostMsg.classList.remove('hidden');
-                    }
+                    // 注意：这里的逻辑已经被state_update中的逻辑替代
+                    // 保留此回调以防万一，但主要逻辑在state_update中处理
                 });
                 addLogEntry(data.winnerName, '赢得 ' + data.pot + '（' + data.handDesc + '）', 'call', 0);
             });
@@ -837,14 +855,7 @@
 
             socket.on('error_msg', function(msg) {
                 showMessage(msg, function() {
-                    if (msg.indexOf('开始') !== -1 || msg.indexOf('房主') !== -1) {
-                        if (isHost) {
-                            restartBtn.classList.remove('hidden');
-                        } else {
-                            waitingHostMsg.textContent = '等待 ' + hostName + ' 开始';
-                            waitingHostMsg.classList.remove('hidden');
-                        }
-                    }
+                    // 错误消息处理，但主要的状态控制在state_update中
                 });
             });
 
