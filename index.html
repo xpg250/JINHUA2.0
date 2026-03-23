@@ -124,10 +124,10 @@
         }
         .conn-status { font-size: 12px; color: var(--accent-green); margin-left: 10px; }
 
-        /* ==================== 底部操作栏（新增） ==================== */
+        /* ==================== 底部操作栏 ==================== */
         .bottom-bar {
             position: absolute; bottom: 0; left: 0; right: 0;
-            background: rgba(0,0,0,0.85);
+            background: rgba(0,0,0,0.45);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
             border-top: 1px solid rgba(255,255,255,0.1);
@@ -152,7 +152,6 @@
             position: relative;
         }
 
-        /* 可用按钮 - 各颜色 */
         .btn-fold { background: var(--accent-red); color: white; }
         .btn-fold:not(:disabled):hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(231,76,60,0.5); border-color: rgba(255,255,255,0.3); }
 
@@ -168,7 +167,6 @@
         .btn-compare { background: #1abc9c; color: white; }
         .btn-compare:not(:disabled):hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(26,188,156,0.5); border-color: rgba(255,255,255,0.3); }
 
-        /* 禁用状态 - 所有按钮统一 */
         .action-btn:disabled {
             opacity: 0.35;
             cursor: not-allowed;
@@ -178,7 +176,6 @@
             border-color: transparent !important;
         }
 
-        /* 按钮下方原因文字 */
         .action-reason {
             font-size: 10px; color: rgba(255,255,255,0.35);
             min-height: 14px; text-align: center;
@@ -192,7 +189,6 @@
         }
         .seat.active .player-info { box-shadow: 0 0 20px var(--accent-gold); }
 
-        /* 桌面端：底部玩家上移避开操作栏 */
         .seat-0 { bottom: 120px; left: 50%; transform: translateX(-50%); }
         .seat-1 { bottom: 240px; left: 5%; }
         .seat-2 { bottom: 360px; left: 15%; }
@@ -373,15 +369,16 @@
             font-weight: 700; font-family: 'Noto Sans SC', sans-serif;
         }
 
+        /* ==================== 再来一局按钮（正中央） ==================== */
         .restart-btn {
-            position: absolute; bottom: 110px; left: 50%; transform: translateX(-50%);
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             padding: 14px 40px; font-size: 18px; font-weight: 700;
             background: var(--accent-green); color: white;
             border: none; border-radius: 10px; cursor: pointer; z-index: 300;
             transition: all 0.3s; font-family: 'Noto Sans SC', sans-serif;
             box-shadow: 0 4px 20px rgba(39,174,96,0.3);
         }
-        .restart-btn:hover { transform: translateX(-50%) translateY(-2px); box-shadow: 0 8px 30px rgba(39,174,96,0.5); }
+        .restart-btn:hover { transform: translate(-50%, -50%) translateY(-2px); box-shadow: 0 8px 30px rgba(39,174,96,0.5); }
         .restart-btn.hidden { display: none; }
 
         /* ==================== 动画 ==================== */
@@ -420,19 +417,14 @@
             .player-name { font-size: 12px; }
             .player-chips { font-size: 16px; }
 
-            .bottom-bar {
-                gap: 8px; padding: 10px 12px; min-height: 80px;
-            }
-            .action-btn {
-                padding: 10px 16px; font-size: 13px; min-width: 65px;
-            }
+            .bottom-bar { gap: 8px; padding: 10px 12px; min-height: 80px; }
+            .action-btn { padding: 10px 16px; font-size: 13px; min-width: 65px; }
             .action-reason { font-size: 9px; }
 
             .action-log-panel { display: none; }
             .top-bar { padding: 0 15px; height: 50px; }
             .round-indicator { top: 60px; font-size: 12px; padding: 6px 15px; }
             .game-message { font-size: 22px; }
-            .restart-btn { bottom: 100px; }
         }
 
         /* ==================== 响应式 - 小屏手机 ==================== */
@@ -454,16 +446,9 @@
             .player-status { font-size: 10px; }
             .bet-info { font-size: 9px; }
 
-            .bottom-bar {
-                gap: 6px; padding: 8px 8px; min-height: 72px;
-                flex-wrap: nowrap; overflow-x: auto;
-            }
-            .action-btn {
-                padding: 8px 12px; font-size: 12px;
-                min-width: 55px; letter-spacing: 0;
-            }
+            .bottom-bar { gap: 6px; padding: 8px 8px; min-height: 72px; flex-wrap: nowrap; overflow-x: auto; }
+            .action-btn { padding: 8px 12px; font-size: 12px; min-width: 55px; letter-spacing: 0; }
             .action-reason { font-size: 8px; }
-            .restart-btn { bottom: 90px; padding: 10px 30px; font-size: 16px; }
         }
 
         /* ==================== 横屏手机优化 ==================== */
@@ -476,7 +461,6 @@
             .seat-3 { top: 55px; }
             .bottom-bar { min-height: 70px; padding: 8px 12px; }
             .action-btn { padding: 8px 16px; font-size: 13px; }
-            .restart-btn { bottom: 80px; }
         }
     </style>
 </head>
@@ -567,7 +551,6 @@
             <div class="cards-container" id="cards5"></div>
         </div>
 
-        <!-- 【新增】底部固定操作栏 -->
         <div class="bottom-bar" id="bottomBar"></div>
 
         <button class="restart-btn hidden" id="restartBtn">再来一局</button>
@@ -725,8 +708,6 @@
             });
         }
 
-        // ==================== 渲染 ====================
-
         function renderState(state) {
             $('potAmount').textContent = state.pot;
             $('baseBetDisplay').textContent = state.baseBet;
@@ -754,7 +735,6 @@
             if (state.phase === 'playing' && state.currentPlayerIndex >= 0)
                 $('seat' + state.currentPlayerIndex).classList.add('active');
 
-            // 【修改】始终渲染底部操作栏
             renderBottomBar(state);
         }
 
@@ -894,8 +874,6 @@
             });
         }
 
-        // ==================== 【全新】底部操作栏 ====================
-
         function renderBottomBar(state) {
             bottomBar.innerHTML = '';
 
@@ -912,37 +890,31 @@
             var callAmount = hasLooked ? baseBet * 2 : baseBet;
             var raiseAmount = hasLooked ? baseBet * 4 : baseBet * 2;
 
-            // 检查各操作是否可用
             var canFold    = available.indexOf('fold') !== -1;
             var canLook    = available.indexOf('look') !== -1;
             var canCall    = available.indexOf('call') !== -1;
             var canRaise   = available.indexOf('raise') !== -1;
             var canCompare = available.indexOf('compare') !== -1;
 
-            // 5个按钮的配置
             var buttons = [
-                // 1. 弃牌
                 {
                     label: '弃牌',
                     cls: 'btn-fold',
                     enabled: isMyTurn && canFold,
                     reason: isMyTurn ? '' : '等待回合'
                 },
-                // 2. 看牌
                 {
                     label: '看牌',
                     cls: 'btn-look',
                     enabled: isMyTurn && canLook,
                     reason: hasLooked ? '已看牌' : (!isMyTurn ? '等待回合' : '')
                 },
-                // 3. 跟注
                 {
                     label: '跟注 ' + callAmount,
                     cls: 'btn-call',
                     enabled: isMyTurn && canCall,
                     reason: !isMyTurn ? '等待回合' : ''
                 },
-                // 4. 加注
                 {
                     label: '加注 ' + raiseAmount,
                     cls: 'btn-raise',
@@ -950,7 +922,6 @@
                     reason: !isMyTurn ? '等待回合' :
                             (state.hasRaised ? '已加注' : '')
                 },
-                // 5. 敲牌
                 {
                     label: '敲牌 ' + callAmount,
                     cls: 'btn-compare',
@@ -961,7 +932,6 @@
                 }
             ];
 
-            // 渲染每个按钮
             buttons.forEach(function(cfg) {
                 var wrapper = document.createElement('div');
                 wrapper.className = 'action-btn-wrapper';
@@ -972,7 +942,6 @@
                 btn.disabled = !cfg.enabled;
 
                 if (cfg.enabled) {
-                    // 绑定点击事件
                     if (cfg.cls === 'btn-compare') {
                         if (compareTargets.length > 1) {
                             btn.onclick = function() { showCompareModal(compareTargets); };
@@ -989,14 +958,12 @@
 
                 wrapper.appendChild(btn);
 
-                // 按钮下方显示禁用原因
                 if (!cfg.enabled && cfg.reason) {
                     var reason = document.createElement('div');
                     reason.className = 'action-reason';
                     reason.textContent = cfg.reason;
                     wrapper.appendChild(reason);
                 } else {
-                    // 占位保持高度一致
                     var placeholder = document.createElement('div');
                     placeholder.className = 'action-reason';
                     placeholder.innerHTML = '&nbsp;';
@@ -1006,8 +973,6 @@
                 bottomBar.appendChild(wrapper);
             });
         }
-
-        // ==================== 敲牌弹窗 ====================
 
         function showCompareModal(targets) {
             compareOptions.innerHTML = '';
@@ -1026,8 +991,6 @@
 
         $('compareCancel').onclick = function() { compareModal.classList.remove('show'); };
 
-        // ==================== 消息 ====================
-
         var msgTimer = null;
         function showMessage(text) {
             var m = $('gameMessage');
@@ -1036,8 +999,6 @@
             clearTimeout(msgTimer);
             msgTimer = setTimeout(function() { m.classList.remove('show'); }, 2500);
         }
-
-        // ==================== 日志 ====================
 
         function addLogEntry(name, action, type, round) {
             var container = $('actionLogContainer');
