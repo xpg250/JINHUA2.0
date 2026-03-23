@@ -753,42 +753,20 @@
                 joinStatus.textContent = '已加入，等待其他玩家...';
             });
 
-                socket.on('waiting', function(data) {
-                    waitingList.style.display = 'block';
-                    waitingPlayers.innerHTML = '';
-                
-                    // 【关键修复】更新 phase 信息
-                    var currentPhase = data.phase || 'waiting';
-                
-                    isHost = false;
-                    hostName = '';
-                
-                    data.players.forEach(function(p) {
-                        var div = document.createElement('div');
-                        div.className = 'waiting-player' + (p.isHost ? ' host' : '');
-                        div.textContent = p.name;
-                        waitingPlayers.appendChild(div);
-                        if (p.isHost) {
-                            hostName = p.name;
-                            if (p.name === nameInput.value.trim()) {
-                                isHost = true;
-                            }
-                        }
-                    });
-                
-                    // 等待界面的开始按钮
-                    if (data.players.length >= 2 && isHost) startBtn.classList.remove('hidden');
-                    else startBtn.classList.add('hidden');
-                
-                    // 【关键修复】如果是 gameover 阶段且当前用户是新房主，显示再来一局按钮
-                    if (currentPhase === 'gameover') {
-                        if (isHost) {
-                            restartBtn.classList.remove('hidden');
-                            waitingHostMsg.classList.add('hidden');
-                        } else {
-                            restartBtn.classList.add('hidden');
-                            waitingHostMsg.textContent = '等待 ' + hostName + ' 开始';
-                            waitingHostMsg.classList.remove('hidden');
+            socket.on('waiting', function(data) {
+                waitingList.style.display = 'block';
+                waitingPlayers.innerHTML = '';
+                isHost = false;
+                hostName = '';
+                data.players.forEach(function(p) {
+                    var div = document.createElement('div');
+                    div.className = 'waiting-player' + (p.isHost ? ' host' : '');
+                    div.textContent = p.name;
+                    waitingPlayers.appendChild(div);
+                    if (p.isHost) {
+                        hostName = p.name;
+                        if (p.name === nameInput.value.trim()) {
+                            isHost = true;
                         }
                     }
                 });
