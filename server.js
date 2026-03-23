@@ -471,10 +471,13 @@ function buildStateForPlayer(viewer) {
         currentPlayerIndex: room.currentPlayerIndex,
         dealerIndex: room.dealerIndex,
         myIndex: viewerIndex,
-        hostId: room.hostId,  // 【修复】告诉客户端谁是房主
+        hostId: room.hostId,
         players: room.players.map((p, i) => {
-            // 【修复】只有看牌/摊牌后才显示牌数据，否则发空数组
-            const showCards = p.hasLooked || room.phase === 'gameover';
+            // 【关键修改】只有在以下情况才显示牌：
+            // 1. 当前查看者是牌的主人（自己看自己的牌）
+            // 2. 游戏结束（摊牌阶段）
+            const showCards = (i === viewerIndex) || (room.phase === 'gameover');
+
             return {
                 name: p.name,
                 chips: p.chips,
