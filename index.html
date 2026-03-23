@@ -223,7 +223,7 @@
             animation: pulse 2s infinite;
         }
         .baoxi-badge {
-            position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+            position: absolute; top: -10px; left: -10px; /* 改为左上角定位 */
             background: var(--accent-orange); color: white;
             padding: 4px 10px; border-radius: 12px;
             font-size: 11px; font-weight: 700; z-index: 10;
@@ -740,59 +740,67 @@
         function renderPlayerSlot(index, player, state) {
             var info = $('playerInfo' + index);
             var isMe = index === state.myIndex;
-
+        
             $('name' + index).textContent = player.name + (isMe ? ' (你)' : '');
-
+        
             var chipsEl = $('chips' + index);
             chipsEl.textContent = player.chips;
             chipsEl.classList.remove('positive', 'negative', 'zero');
             chipsEl.classList.add(player.chips > 0 ? 'positive' : player.chips < 0 ? 'negative' : 'zero');
-
+        
             $('status' + index).textContent = player.status === 'folded' ? '已弃牌' : '';
-
+        
             var betText = '';
             if (player.bet > 0) betText = '下注: ' + player.bet;
-            if (player.handDesc && (player.hasLooked || state.phase === 'gameover'))
-                betText += (betText ? ' | ' : '') + player.handDesc;
             $('betInfo' + index).textContent = betText;
-
+        
             info.classList.toggle('folded', player.status === 'folded');
             info.classList.toggle('has-looked', player.hasLooked);
-
-            var badge = info.querySelector('.dealer-badge');
-            if (badge) badge.remove();
+        
+            // 清除旧徽章
+            var oldBadge = info.querySelector('.dealer-badge');
+            if (oldBadge) oldBadge.remove();
             info.classList.remove('dealer');
-            if (index === state.dealerIndex) {
+        
+            var oldLookedBadge = info.querySelector('.looked-badge');
+            if (oldLookedBadge) oldLookedBadge.remove();
+        
+            var oldBaoxiBadge = info.querySelector('.baoxi-badge');
+            if (oldBaoxiBadge) oldBaoxiBadge.remove();
+        
+            var isDealer = index === state.dealerIndex;
+            var isBaoxi = !!player.baoxi;
+        
+            if (isDealer) {
                 info.classList.add('dealer');
                 badge = document.createElement('div');
-                badge.className = 'dealer-badge'; badge.textContent = '庄';
+                badge.className = 'dealer-badge';
+                // 庄家且报喜，合并显示
+                badge.textContent = isBaoxi ? '庄|报喜' : '庄';
                 info.appendChild(badge);
-            }
-
-            var lookedBadge = info.querySelector('.looked-badge');
-            if (lookedBadge) lookedBadge.remove();
-            if (player.hasLooked && player.status !== 'folded') {
-                lookedBadge = document.createElement('div');
-                lookedBadge.className = 'looked-badge'; lookedBadge.textContent = '已看牌';
-                info.appendChild(lookedBadge);
-            }
-
-            var baoxiBadge = info.querySelector('.baoxi-badge');
-            if (baoxiBadge) baoxiBadge.remove();
-            if (player.baoxi) {
-                baoxiBadge = document.createElement('div');
-                baoxiBadge.className = 'baoxi-badge'; baoxiBadge.textContent = '报喜';
+            } else if (isBaoxi) {
+                // 非庄家但报喜，独立显示在左上角
+                var baoxiBadge = document.createElement('div');
+                baoxiBadge.className = 'baoxi-badge';
+                baoxiBadge.textContent = '报喜';
                 info.appendChild(baoxiBadge);
             }
-
+        
+            if (player.hasLooked && player.status !== 'folded') {
+                var lookedBadge = document.createElement('div');
+                lookedBadge.className = 'looked-badge';
+                lookedBadge.textContent = '已看牌';
+                info.appendChild(lookedBadge);
+            }
+        
             info.classList.remove('winner', 'winner-anim');
-
+        
             renderCardsForPlayer(index, player, state);
         }
 
         function renderCardsForPlayer(index, player, state) {
             var container = $('cards' + index);
-
+        
             if (player.cards && player.cards.length === 3) {
                 container.innerHTML = '';
                 player.cards.forEach(function(card) {
@@ -800,11 +808,7 @@
                     if (player.status === 'folded') cardEl.style.opacity = '0.5';
                     container.appendChild(cardEl);
                 });
-                if (state.phase === 'gameover' && player.handDesc && player.status !== 'folded') {
-                    var tl = document.createElement('div');
-                    tl.className = 'hand-type'; tl.textContent = player.handDesc;
-                    container.appendChild(tl);
-                }
+                // 已删除：不再在游戏结束时显示牌型描述（如单张Q、顺子9等）
             } else {
                 container.innerHTML = '';
                 if (player.status !== 'folded' || state.phase === 'playing') {
