@@ -755,11 +755,18 @@
             });
 
             socket.on('game_over', function(data) {
-                showMessage(data.winnerName + ' 赢了 ' + data.pot + ' 筹码！');
-                addLogEntry(data.winnerName, '赢得 ' + data.pot + ' 筹码（' + data.handDesc + '）', 'call', 0);
+                showMessage(data.winnerName + ' 赢了 ' + data.pot);
+                addLogEntry(data.winnerName, '赢得 ' + data.pot + '（' + data.handDesc + '）', 'call', 0);
                 setTimeout(function() {
-                    showRestartArea();
-                }, 3000);
+                    if (isHost) {
+                        restartBtn.classList.remove('hidden');
+                        waitingHostMsg.classList.add('hidden');
+                    } else {
+                        restartBtn.classList.add('hidden');
+                        waitingHostMsg.textContent = '等待 ' + hostName + ' 开始';
+                        waitingHostMsg.classList.remove('hidden');
+                    }
+                }, 3500);
             });
 
             socket.on('log', function(data) {
@@ -1110,7 +1117,7 @@
             m.textContent = text;
             m.classList.add('show');
             clearTimeout(msgTimer);
-            msgTimer = setTimeout(function() { m.classList.remove('show'); }, 2500);
+            msgTimer = setTimeout(function() { m.classList.remove('show'); }, 3000);
         }
 
         function addLogEntry(name, action, type, round) {
