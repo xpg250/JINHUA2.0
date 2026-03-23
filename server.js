@@ -340,6 +340,8 @@ function handleAction(socket, data) {
         case 'fold':
             p.status = 'folded';
             p.firstRoundAction = false;
+            // 【修改】清除敲牌胜利标记
+            p.justCompared = false;
             addLog(p.name, '弃牌', 'fold');
             break;
 
@@ -359,7 +361,7 @@ function handleAction(socket, data) {
             p.bet += amt;
             room.pot += amt;
             if (getActivePlayers().length === 2) p.headsUpBetCount++;
-
+        
             if (room.round === 1 && !p.hasLooked && p.firstRoundAction) {
                 p.baoxi = true;
                 addLog(p.name, '跟注 ' + amt + '（报喜！）', 'baoxi');
@@ -367,6 +369,9 @@ function handleAction(socket, data) {
                 addLog(p.name, '跟注 ' + amt, 'call');
             }
             p.firstRoundAction = false;
+        
+            // 【修改】清除敲牌胜利标记
+            p.justCompared = false;
             break;
         }
 
@@ -393,15 +398,15 @@ function handleAction(socket, data) {
             if (target === undefined || target === room.currentPlayerIndex) return;
             const t = room.players[target];
             if (!t || t.status !== 'active') return socket.emit('error_msg', '目标无效');
-
+        
             const cost = getCompareCost(p);
             p.chips -= cost;
             p.bet += cost;
             room.pot += cost;
-
+        
             const result = compareHands(p.handType, t.handType);
             addLog(p.name, '向 ' + t.name + ' 敲牌', 'compare');
-
+        
             if (result > 0) {
                 t.status = 'folded';
                 addLog(p.name, '敲牌赢了 ' + t.name, 'compare');
@@ -409,6 +414,18 @@ function handleAction(socket, data) {
                     winner: room.currentPlayerIndex,
                     loser: target
                 });
+        
+                // 【修改】敲牌胜利后，检查是否只剩自己一人
+                const active = getActivePlayers();
+                if (active.length <= 1) {
+                    handleEndOfRound(active[0] || null);
+                    return;
+                }
+        
+                // 【修改】设置标记，当前玩家只能继续跟注
+                p.justCompared = true;
+                broadcastState();
+                return;
             } else {
                 p.status = 'folded';
                 addLog(p.name, '敲牌输给了 ' + t.name, 'compare');
@@ -529,6 +546,12 @@ function addLog(name, action, type) {
 
 function getAvailableActions(player) {
     if (!player || player.status !== 'active') return [];
+
+    // 【修改】如果刚敲牌胜利，只能跟注或弃牌
+    if (player.justCompared) {
+        return ['fold', 'call'];
+    }
+
     const actions = ['fold'];
     if (!player.hasLooked) actions.push('look');
     actions.push('call');
