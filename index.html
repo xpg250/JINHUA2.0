@@ -811,22 +811,24 @@
                 if (state.hostName) {
                     hostName = state.hostName;
                 }
-
+            
                 renderState(state);
-
+            
                 // 【关键修复】在游戏结束阶段，根据isHost状态控制按钮显示
                 if (state.phase === 'gameover') {
-                    updateWaitingHostDisplay();
+                    // 新增逻辑：检查是否正在显示获胜消息，如果是则延迟处理
+                    if (msgTimer) {
+                        // 如果有定时器（即showMessage正在运行），则等待其完成
+                        // 将updateWaitingHostDisplay的调用移至showMessage的回调中
+                        // 这里不做任何操作，等待game_over事件的回调处理
+                    } else {
+                        // 如果没有定时器（例如玩家重连进入已结束的游戏），直接显示等待界面
+                        updateWaitingHostDisplay();
+                    }
                 } else {
                     // 非gameover阶段，隐藏这些元素
                     restartBtn.classList.add('hidden');
                     waitingHostMsg.classList.add('hidden');
-                }
-            });
-
-            socket.on('your_cards', function(data) {
-                if (myIndex >= 0) {
-                    flipMyCards(myIndex, data.cards);
                 }
             });
 
@@ -847,8 +849,11 @@
 
             socket.on('game_over', function(data) {
                 showMessage(data.winnerName + ' 赢了 ' + data.pot, function() {
-                    // 注意：这里的逻辑已经被state_update中的逻辑替代
-                    // 保留此回调以防万一，但主要逻辑在state_update中处理
+                    // 【关键修复】在获胜消息显示完毕后，再检查并显示等待界面
+                    // 这确保了只有消息消失后，才会出现“等待房主”或“再来一局”
+                    if (gameState && gameState.phase === 'gameover') {
+                        updateWaitingHostDisplay();
+                    }
                 });
                 addLogEntry(data.winnerName, '赢得 ' + data.pot + '（' + data.handDesc + '）', 'call', 0);
             });
@@ -865,10 +870,10 @@
 
             socket.on('error_msg', function(msg) {
                 showMessage(msg, function() {
-                    // 错误消息处理，但主要的状态控制在state_update中
+                    // 错误消息处理，但主要的状态控制在state_update中处理
+                    // 此处可以根据需要添加逻辑，但通常不需要
                 });
             });
-
             socket.on('disconnect', function() {
                 $('connStatus').textContent = '● 已断开';
                 $('connStatus').style.color = '#e74c3c';
