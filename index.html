@@ -380,17 +380,31 @@
             font-weight: 700; font-family: 'Noto Sans SC', sans-serif;
         }
 
-        /* ==================== 再来一局按钮（正中央） ==================== */
-        .restart-btn {
+        /* ==================== 再来一局区域（正中央） ==================== */
+        .restart-area {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 300; text-align: center;
+        }
+        .restart-area.hidden { display: none; }
+
+        .restart-btn {
             padding: 14px 40px; font-size: 18px; font-weight: 700;
             background: var(--accent-green); color: white;
-            border: none; border-radius: 10px; cursor: pointer; z-index: 300;
+            border: none; border-radius: 10px; cursor: pointer;
             transition: all 0.3s; font-family: 'Noto Sans SC', sans-serif;
             box-shadow: 0 4px 20px rgba(39,174,96,0.3);
         }
-        .restart-btn:hover { transform: translate(-50%, -50%) translateY(-2px); box-shadow: 0 8px 30px rgba(39,174,96,0.5); }
-        .restart-btn.hidden { display: none; }
+        .restart-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(39,174,96,0.5); }
+
+        .waiting-host-text {
+            font-size: 18px; font-weight: 700;
+            color: var(--accent-gold);
+            text-shadow: 2px 2px 8px var(--shadow);
+            padding: 14px 40px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
+            white-space: nowrap;
+        }
 
         /* ==================== 动画 ==================== */
         @keyframes dealCard { 0%{transform:translateY(-200px) rotate(-20deg);opacity:0} 100%{transform:translateY(0) rotate(0);opacity:1} }
@@ -428,7 +442,6 @@
             .player-name { font-size: 12px; }
             .player-chips { font-size: 16px; }
 
-            /* 手机端徽章缩小并避免重叠 */
             .dealer-badge {
                 top: -8px; left: -8px;
                 min-width: 18px; height: 18px;
@@ -454,6 +467,9 @@
             .top-bar { padding: 0 15px; height: 50px; }
             .round-indicator { top: 60px; font-size: 12px; padding: 6px 15px; }
             .game-message { font-size: 22px; }
+
+            .restart-btn { padding: 12px 30px; font-size: 16px; }
+            .waiting-host-text { font-size: 15px; padding: 12px 24px; }
         }
 
         /* ==================== 响应式 - 小屏手机 ==================== */
@@ -475,7 +491,6 @@
             .player-status { font-size: 10px; }
             .bet-info { font-size: 9px; }
 
-            /* 小屏手机徽章进一步缩小 */
             .dealer-badge {
                 top: -6px; left: -6px;
                 min-width: 16px; height: 16px;
@@ -496,6 +511,9 @@
             .bottom-bar { gap: 6px; padding: 8px 8px; min-height: 72px; flex-wrap: nowrap; overflow-x: auto; }
             .action-btn { padding: 8px 12px; font-size: 12px; min-width: 55px; letter-spacing: 0; }
             .action-reason { font-size: 8px; }
+
+            .restart-btn { padding: 10px 24px; font-size: 14px; }
+            .waiting-host-text { font-size: 13px; padding: 10px 18px; }
         }
 
         /* ==================== 横屏手机优化 ==================== */
@@ -616,7 +634,9 @@
 
         <div class="bottom-bar" id="bottomBar"></div>
 
-        <button class="restart-btn hidden" id="restartBtn">再来一局</button>
+        <!-- 【修改】再来一局区域：房主显示按钮，非房主显示等待文字 -->
+        <div class="restart-area hidden" id="restartArea"></div>
+
         <div class="message-area"><div class="game-message" id="gameMessage"></div></div>
 
         <div class="compare-modal" id="compareModal">
@@ -645,7 +665,7 @@
         var waitingList   = $('waitingList');
         var waitingPlayers= $('waitingPlayers');
         var startBtn      = $('startBtn');
-        var restartBtn    = $('restartBtn');
+        var restartArea   = $('restartArea');
         var bottomBar     = $('bottomBar');
         var compareModal  = $('compareModal');
         var compareOptions= $('compareOptions');
@@ -703,7 +723,7 @@
             socket.on('game_started', function() {
                 joinScreen.classList.add('hidden');
                 gameContainer.classList.remove('hidden');
-                restartBtn.classList.add('hidden');
+                restartArea.classList.add('hidden');
                 clearLog();
                 addLogEntry('系统', '游戏开始！', 'call', 0);
             });
@@ -738,14 +758,9 @@
                 showMessage(data.winnerName + ' 赢了 ' + data.pot + ' 筹码！');
                 addLogEntry(data.winnerName, '赢得 ' + data.pot + ' 筹码（' + data.handDesc + '）', 'call', 0);
                 setTimeout(function() {
-                    restartBtn.classList.remove('hidden');
+                    showRestartArea();
                 }, 3000);
             });
-
-            restartBtn.onclick = function() {
-                restartBtn.classList.add('hidden');
-                socket.emit('start_game');
-            };
 
             socket.on('log', function(data) {
                 addLogEntry(data.name, data.action, data.type, data.round);
@@ -754,7 +769,7 @@
             socket.on('error_msg', function(msg) {
                 showMessage(msg);
                 if (msg.indexOf('开始') !== -1 || msg.indexOf('房主') !== -1) {
-                    setTimeout(function() { restartBtn.classList.remove('hidden'); }, 2000);
+                    setTimeout(function() { showRestartArea(); }, 2000);
                 }
             });
 
@@ -770,6 +785,35 @@
                 socket.emit('join', { name: nameInput.value.trim(), room: 'main' });
             });
         }
+
+        // 【新增】根据是否为房主显示不同内容
+        function showRestartArea() {
+            if (!gameState) return;
+            var isHost = gameState.hostId === mySocketId;
+            restartArea.innerHTML = '';
+
+            if (isHost) {
+                var btn = document.createElement('button');
+                btn.className = 'restart-btn';
+                btn.textContent = '再来一局';
+                btn.onclick = function() {
+                    restartArea.classList.add('hidden');
+                    socket.emit('start_game');
+                };
+                restartArea.appendChild(btn);
+            } else {
+                var text = document.createElement('div');
+                text.className = 'waiting-host-text';
+                text.textContent = '等待 ' + (gameState.hostName || '房主') + ' 开始';
+                restartArea.appendChild(text);
+            }
+            restartArea.classList.remove('hidden');
+        }
+
+        // 【新增】游戏开始时隐藏重启区域
+        socket && socket.on('game_started', function() {
+            restartArea.classList.add('hidden');
+        });
 
         function renderState(state) {
             $('potAmount').textContent = state.pot;
@@ -799,6 +843,11 @@
                 $('seat' + state.currentPlayerIndex).classList.add('active');
 
             renderBottomBar(state);
+
+            // 【新增】游戏结束时根据身份显示不同内容
+            if (state.phase === 'gameover') {
+                showRestartArea();
+            }
         }
 
         function renderPlayerSlot(index, player, state) {
