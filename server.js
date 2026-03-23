@@ -90,6 +90,10 @@ function createRoom() {
 }
 
 function getActivePlayers() { return room.players.filter(p => p.status === 'active'); }
+function getPlayablePlayers() {
+    // 【新增】获取可参与游戏的玩家（状态为active或waiting）
+    return room.players.filter(p => p.status === 'active' || p.status === 'waiting');
+}
 function nextActiveFrom(idx) {
     for (let i = 1; i <= room.players.length; i++) {
         const ni = (idx + i) % room.players.length;
@@ -158,14 +162,13 @@ function handleDisconnect(socket) {
     }
 
     if (room.phase === 'playing') {
-        const activePlayers = getActivePlayers();
         // 【修改】检查离开的是否为活跃玩家
-        if (room.players[idx].status === 'active') {
-            if (activePlayers.length <= 1) handleEndOfRound(activePlayers[0] || null);
-            else if (room.currentPlayerIndex === idx) {
-                room.currentPlayerIndex = nextActiveFrom(idx > 0 ? idx - 1 : room.players.length - 1);
-                broadcastState();
-            }
+        const activePlayers = getActivePlayers();
+        if (activePlayers.length <= 1) {
+            handleEndOfRound(activePlayers[0] || null);
+        } else if (room.currentPlayerIndex === idx && room.players[idx].status === 'active') {
+            room.currentPlayerIndex = nextActiveFrom(idx > 0 ? idx - 1 : room.players.length - 1);
+            broadcastState();
         }
     } else {
         broadcastWaiting();
@@ -188,7 +191,7 @@ function broadcastWaiting() {
 function handleStartGame(socket) {
     if (!room) return socket.emit('error_msg', '房间不存在');
     // 【修改】计算可参与游戏的玩家数量（状态为active或waiting）
-    const availablePlayers = room.players.filter(p => p.status === 'active' || p.status === 'waiting');
+    const availablePlayers = getPlayablePlayers();
     if (availablePlayers.length < 2) return socket.emit('error_msg', '至少需要2名可参与的玩家');
 
     const hostExists = room.players.some(p => p.id === room.hostId);
