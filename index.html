@@ -23,7 +23,6 @@
             user-select: none;
         }
 
-        /* ==================== 加入界面 ==================== */
         .join-screen {
             position: fixed; inset: 0;
             background: radial-gradient(ellipse at center, var(--bg-table) 0%, var(--bg-primary) 100%);
@@ -90,7 +89,6 @@
         .start-game-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(39,174,96,0.5); }
         .start-game-btn.hidden { display: none; }
 
-        /* ==================== 游戏界面 ==================== */
         .game-container {
             width: 100vw; height: 100vh; position: relative;
             background: radial-gradient(ellipse at center, var(--bg-table) 0%, var(--bg-primary) 100%);
@@ -103,7 +101,6 @@
             pointer-events: none;
         }
 
-        /* 顶部栏 */
         .top-bar {
             position: absolute; top: 0; left: 0; right: 0; height: 60px;
             background: rgba(0,0,0,0.4); display: flex; align-items: center;
@@ -124,7 +121,6 @@
         }
         .conn-status { font-size: 12px; color: var(--accent-green); margin-left: 10px; }
 
-        /* ==================== 底部操作栏 ==================== */
         .bottom-bar {
             position: absolute; bottom: 0; left: 0; right: 0;
             background: rgba(0,0,0,0.45);
@@ -182,7 +178,6 @@
             white-space: nowrap;
         }
 
-        /* ==================== 座位布局 ==================== */
         .seat {
             position: absolute; display: flex; flex-direction: column;
             align-items: center; transition: all 0.3s ease;
@@ -207,14 +202,31 @@
         .player-info.dealer { border-color: var(--accent-orange); }
         .player-info.has-looked { border-color: var(--accent-purple); background: rgba(155,89,182,0.15); }
         .player-info.folded { opacity: 0.5; }
-        .dealer-badge {
+
+        /* 左上角徽章（庄家/报喜/庄|报喜） */
+        .badge-top-left {
             position: absolute; top: -10px; left: -10px;
-            background: var(--accent-orange); color: white;
-            width: 24px; height: 24px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: 700; z-index: 10;
+            color: white; padding: 4px 10px; border-radius: 12px;
+            font-size: 11px; font-weight: 700; z-index: 10;
+            white-space: nowrap;
         }
-        .looked-badge {
+        .badge-top-left.dealer-only {
+            background: var(--accent-orange);
+            box-shadow: 0 2px 8px rgba(230,126,34,0.5);
+        }
+        .badge-top-left.baoxi-only {
+            background: var(--accent-orange);
+            box-shadow: 0 2px 8px rgba(230,126,34,0.5);
+            animation: pulse 2s infinite;
+        }
+        .badge-top-left.dealer-baoxi {
+            background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-gold) 100%);
+            box-shadow: 0 2px 8px rgba(244,208,63,0.5);
+            animation: pulse 2s infinite;
+        }
+
+        /* 右上角徽章（已看牌） */
+        .badge-top-right {
             position: absolute; top: -10px; right: -10px;
             background: var(--accent-purple); color: white;
             padding: 4px 10px; border-radius: 12px;
@@ -222,21 +234,7 @@
             box-shadow: 0 2px 8px rgba(155,89,182,0.5);
             animation: pulse 2s infinite;
         }
-        .baoxi-badge {
-            position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
-            background: var(--accent-orange); color: white;
-            padding: 4px 10px; border-radius: 12px;
-            font-size: 11px; font-weight: 700; z-index: 10;
-            box-shadow: 0 2px 8px rgba(230,126,34,0.5);
-            animation: pulse 2s infinite;
-        }
-        .huoxi-badge {
-            position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%);
-            background: var(--accent-gold); color: var(--text-dark);
-            padding: 4px 10px; border-radius: 12px;
-            font-size: 11px; font-weight: 700; z-index: 10;
-            box-shadow: 0 2px 8px rgba(244,208,63,0.5);
-        }
+
         @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
         .player-name { font-size: 14px; font-weight: 700; color: var(--text-light); margin-bottom: 5px; }
         .player-chips { font-size: 18px; font-weight: 700; transition: all 0.3s ease; }
@@ -246,7 +244,6 @@
         .player-status { font-size: 12px; color: var(--accent-orange); margin-top: 5px; min-height: 18px; }
         .bet-info { font-size: 11px; color: var(--accent-purple); margin-top: 3px; min-height: 14px; }
 
-        /* ==================== 扑克牌 ==================== */
         .cards-container {
             display: flex; gap: 8px; margin-top: 10px;
             justify-content: center; position: relative;
@@ -283,14 +280,7 @@
             display: flex; flex-direction: column; align-items: center; line-height: 1;
         }
         .card-small .card-suit { font-size: 10px; }
-        .hand-type {
-            position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%);
-            background: var(--accent-orange); color: white;
-            padding: 2px 8px; border-radius: 10px;
-            font-size: 11px; font-weight: 700; white-space: nowrap;
-        }
 
-        /* ==================== 其他UI元素 ==================== */
         .message-area {
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
@@ -369,7 +359,6 @@
             font-weight: 700; font-family: 'Noto Sans SC', sans-serif;
         }
 
-        /* ==================== 再来一局按钮（正中央） ==================== */
         .restart-btn {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             padding: 14px 40px; font-size: 18px; font-weight: 700;
@@ -381,7 +370,6 @@
         .restart-btn:hover { transform: translate(-50%, -50%) translateY(-2px); box-shadow: 0 8px 30px rgba(39,174,96,0.5); }
         .restart-btn.hidden { display: none; }
 
-        /* ==================== 动画 ==================== */
         @keyframes dealCard { 0%{transform:translateY(-200px) rotate(-20deg);opacity:0} 100%{transform:translateY(0) rotate(0);opacity:1} }
         .card.dealing { animation: dealCard 0.4s ease forwards; }
         @keyframes flipCard { 0%{transform:rotateY(0deg)} 50%{transform:rotateY(90deg)} 100%{transform:rotateY(0deg)} }
@@ -389,7 +377,6 @@
         @keyframes winPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.1)} }
         .winner-anim { animation: winPulse 0.5s ease 3; }
 
-        /* ==================== 响应式 - 平板 ==================== */
         @media (max-width: 1024px) {
             .seat-1 { bottom: 220px; left: 3%; }
             .seat-5 { bottom: 220px; right: 3%; }
@@ -398,7 +385,6 @@
             .action-log-panel { width: 180px; }
         }
 
-        /* ==================== 响应式 - 手机 ==================== */
         @media (max-width: 768px) {
             .card { width: 45px; height: 63px; }
             .card-rank { font-size: 14px; }
@@ -427,7 +413,6 @@
             .game-message { font-size: 22px; }
         }
 
-        /* ==================== 响应式 - 小屏手机 ==================== */
         @media (max-width: 480px) {
             .card { width: 38px; height: 53px; }
             .card-rank { font-size: 12px; }
@@ -451,7 +436,6 @@
             .action-reason { font-size: 8px; }
         }
 
-        /* ==================== 横屏手机优化 ==================== */
         @media (max-height: 500px) and (orientation: landscape) {
             .seat-0 { bottom: 85px; }
             .seat-1 { bottom: 130px; left: 1%; }
@@ -475,9 +459,9 @@
         </div>
         <div class="join-status" id="joinStatus"></div>
         <div class="waiting-list" id="waitingList" style="display:none;">
-            <div class="waiting-title">等待玩家中...</div>
-            <div class="waiting-players" id="waitingPlayers"></div>
-            <button class="start-game-btn hidden" id="startBtn">开始游戏</button>
+            <div class="waiting="waiting-players" id="waitingPlayers"></div>
+            <button class="start-game-btn-title">等待玩家中...</div>
+            <div class hidden" id="startBtn">开始游戏</button>
         </div>
     </div>
 
@@ -533,9 +517,8 @@
             <div class="cards-container" id="cards3"></div>
         </div>
         <div class="seat seat-4" id="seat4">
-            <div class="player-info" id="playerInfo4">
-                <div class="player-name" id="name4">-</div>
-                <div class="player-chips zero" id="chips4">0</div>
+            <div class="player-info" idips zero" id="playerInfo4">
+                <div class="player-name" id="name4">-</div="chips4">0</div>
                 <div class="player-status" id="status4"></div>
                 <div class="bet-info" id="betInfo4"></div>
             </div>
@@ -580,7 +563,8 @@
         var joinBtn       = $('joinBtn');
         var joinStatus    = $('joinStatus');
         var waitingList   = $('waitingList');
-        var waitingPlayers= $('waitingPlayers');
+        var waiting>
+                <div class="player-chPlayers= $('waitingPlayers');
         var startBtn      = $('startBtn');
         var restartBtn    = $('restartBtn');
         var bottomBar     = $('bottomBar');
@@ -738,6 +722,7 @@
             renderBottomBar(state);
         }
 
+        // 【修改】renderPlayerSlot - 左上角合并显示庄家/报喜
         function renderPlayerSlot(index, player, state) {
             var info = $('playerInfo' + index);
             var isMe = index === state.myIndex;
@@ -753,37 +738,45 @@
 
             var betText = '';
             if (player.bet > 0) betText = '下注: ' + player.bet;
-            if (player.handDesc && (player.hasLooked || state.phase === 'gameover'))
-                betText += (betText ? ' | ' : '') + player.handDesc;
             $('betInfo' + index).textContent = betText;
 
             info.classList.toggle('folded', player.status === 'folded');
             info.classList.toggle('has-looked', player.hasLooked);
 
-            var badge = info.querySelector('.dealer-badge');
-            if (badge) badge.remove();
+            // 【修改】清除所有旧徽章
+            var oldBadges = info.querySelectorAll('.badge-top-left, .badge-top-right');
+            oldBadges.forEach(function(b) { b.remove(); });
             info.classList.remove('dealer');
-            if (index === state.dealerIndex) {
-                info.classList.add('dealer');
-                badge = document.createElement('div');
-                badge.className = 'dealer-badge'; badge.textContent = '庄';
+
+            // 【修改】左上角徽章：庄家/报喜/庄|报喜
+            var isDealer = index === state.dealerIndex;
+            var isBaoxi = player.baoxi;
+
+            if (isDealer || isBaoxi) {
+                var badge = document.createElement('div');
+                badge.className = 'badge-top-left';
+
+                if (isDealer && isBaoxi) {
+                    badge.textContent = '庄|报喜';
+                    badge.classList.add('dealer-baoxi');
+                } else if (isDealer) {
+                    badge.textContent = '庄';
+                    badge.classList.add('dealer-only');
+                } else {
+                    badge.textContent = '报喜';
+                    badge.classList.add('baoxi-only');
+                }
+
                 info.appendChild(badge);
+                if (isDealer) info.classList.add('dealer');
             }
 
-            var lookedBadge = info.querySelector('.looked-badge');
-            if (lookedBadge) lookedBadge.remove();
+            // 【修改】右上角徽章：已看牌
             if (player.hasLooked && player.status !== 'folded') {
-                lookedBadge = document.createElement('div');
-                lookedBadge.className = 'looked-badge'; lookedBadge.textContent = '已看牌';
+                var lookedBadge = document.createElement('div');
+                lookedBadge.className = 'badge-top-right';
+                lookedBadge.textContent = '已看牌';
                 info.appendChild(lookedBadge);
-            }
-
-            var baoxiBadge = info.querySelector('.baoxi-badge');
-            if (baoxiBadge) baoxiBadge.remove();
-            if (player.baoxi) {
-                baoxiBadge = document.createElement('div');
-                baoxiBadge.className = 'baoxi-badge'; baoxiBadge.textContent = '报喜';
-                info.appendChild(baoxiBadge);
             }
 
             info.classList.remove('winner', 'winner-anim');
@@ -791,6 +784,7 @@
             renderCardsForPlayer(index, player, state);
         }
 
+        // 【修改】renderCardsForPlayer - 删除牌型显示
         function renderCardsForPlayer(index, player, state) {
             var container = $('cards' + index);
 
@@ -801,11 +795,7 @@
                     if (player.status === 'folded') cardEl.style.opacity = '0.5';
                     container.appendChild(cardEl);
                 });
-                if (state.phase === 'gameover' && player.handDesc && player.status !== 'folded') {
-                    var tl = document.createElement('div');
-                    tl.className = 'hand-type'; tl.textContent = player.handDesc;
-                    container.appendChild(tl);
-                }
+                // 【删除】不再显示 hand-type 牌型文字
             } else {
                 container.innerHTML = '';
                 if (player.status !== 'folded' || state.phase === 'playing') {
