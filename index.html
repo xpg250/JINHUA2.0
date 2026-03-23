@@ -708,7 +708,7 @@
             restartBtn.onclick = function() {
                 restartBtn.classList.add('hidden');
                 waitingHostMsg.classList.add('hidden');
-                socket.emit('restart_game');
+                socket.emit('start_game');
             };
 
             socket.on('log', function(data) {
