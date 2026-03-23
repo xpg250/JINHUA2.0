@@ -207,6 +207,7 @@
         .player-info.dealer { border-color: var(--accent-orange); }
         .player-info.has-looked { border-color: var(--accent-purple); background: rgba(155,89,182,0.15); }
         .player-info.folded { opacity: 0.5; }
+
         .dealer-badge {
             position: absolute; top: -10px; left: -10px;
             background: var(--accent-orange); color: white;
@@ -216,22 +217,28 @@
             white-space: nowrap;
             padding: 0 6px;
         }
+
         .looked-badge {
             position: absolute; top: -10px; right: -10px;
             background: var(--accent-purple); color: white;
-            padding: 4px 10px; border-radius: 12px;
+            padding: 4px 8px; border-radius: 12px;
             font-size: 11px; font-weight: 700; z-index: 10;
             box-shadow: 0 2px 8px rgba(155,89,182,0.5);
             animation: pulse 2s infinite;
+            white-space: nowrap;
         }
+
         .baoxi-badge {
-            position: absolute; top: -10px; left: -10px; /* 改为左上角定位 */
+            position: absolute; top: -10px; left: -10px;
+            transform: none;
             background: var(--accent-orange); color: white;
             padding: 4px 10px; border-radius: 12px;
             font-size: 11px; font-weight: 700; z-index: 10;
             box-shadow: 0 2px 8px rgba(230,126,34,0.5);
             animation: pulse 2s infinite;
+            white-space: nowrap;
         }
+
         .huoxi-badge {
             position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%);
             background: var(--accent-gold); color: var(--text-dark);
@@ -239,7 +246,9 @@
             font-size: 11px; font-weight: 700; z-index: 10;
             box-shadow: 0 2px 8px rgba(244,208,63,0.5);
         }
+
         @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+
         .player-name { font-size: 14px; font-weight: 700; color: var(--text-light); margin-bottom: 5px; }
         .player-chips { font-size: 18px; font-weight: 700; transition: all 0.3s ease; }
         .player-chips.positive { color: var(--accent-green); }
@@ -419,6 +428,24 @@
             .player-name { font-size: 12px; }
             .player-chips { font-size: 16px; }
 
+            /* 手机端徽章缩小并避免重叠 */
+            .dealer-badge {
+                top: -8px; left: -8px;
+                min-width: 18px; height: 18px;
+                font-size: 9px; padding: 0 4px;
+                border-radius: 9px;
+            }
+            .looked-badge {
+                top: -8px; right: -8px;
+                font-size: 9px; padding: 2px 5px;
+                border-radius: 9px;
+            }
+            .baoxi-badge {
+                top: -8px; left: -8px;
+                font-size: 9px; padding: 2px 5px;
+                border-radius: 9px;
+            }
+
             .bottom-bar { gap: 8px; padding: 10px 12px; min-height: 80px; }
             .action-btn { padding: 10px 16px; font-size: 13px; min-width: 65px; }
             .action-reason { font-size: 9px; }
@@ -448,6 +475,24 @@
             .player-status { font-size: 10px; }
             .bet-info { font-size: 9px; }
 
+            /* 小屏手机徽章进一步缩小 */
+            .dealer-badge {
+                top: -6px; left: -6px;
+                min-width: 16px; height: 16px;
+                font-size: 8px; padding: 0 3px;
+                border-radius: 8px;
+            }
+            .looked-badge {
+                top: -6px; right: -6px;
+                font-size: 8px; padding: 2px 4px;
+                border-radius: 8px;
+            }
+            .baoxi-badge {
+                top: -6px; left: -6px;
+                font-size: 8px; padding: 2px 4px;
+                border-radius: 8px;
+            }
+
             .bottom-bar { gap: 6px; padding: 8px 8px; min-height: 72px; flex-wrap: nowrap; overflow-x: auto; }
             .action-btn { padding: 8px 12px; font-size: 12px; min-width: 55px; letter-spacing: 0; }
             .action-reason { font-size: 8px; }
@@ -463,6 +508,23 @@
             .seat-3 { top: 55px; }
             .bottom-bar { min-height: 70px; padding: 8px 12px; }
             .action-btn { padding: 8px 16px; font-size: 13px; }
+
+            .dealer-badge {
+                top: -7px; left: -7px;
+                min-width: 17px; height: 17px;
+                font-size: 9px; padding: 0 4px;
+                border-radius: 9px;
+            }
+            .looked-badge {
+                top: -7px; right: -7px;
+                font-size: 9px; padding: 2px 5px;
+                border-radius: 9px;
+            }
+            .baoxi-badge {
+                top: -7px; left: -7px;
+                font-size: 9px; padding: 2px 5px;
+                border-radius: 9px;
+            }
         }
     </style>
 </head>
@@ -742,67 +804,65 @@
         function renderPlayerSlot(index, player, state) {
             var info = $('playerInfo' + index);
             var isMe = index === state.myIndex;
-        
+
             $('name' + index).textContent = player.name + (isMe ? ' (你)' : '');
-        
+
             var chipsEl = $('chips' + index);
             chipsEl.textContent = player.chips;
             chipsEl.classList.remove('positive', 'negative', 'zero');
             chipsEl.classList.add(player.chips > 0 ? 'positive' : player.chips < 0 ? 'negative' : 'zero');
-        
+
             $('status' + index).textContent = player.status === 'folded' ? '已弃牌' : '';
-        
+
             var betText = '';
             if (player.bet > 0) betText = '下注: ' + player.bet;
             $('betInfo' + index).textContent = betText;
-        
+
             info.classList.toggle('folded', player.status === 'folded');
             info.classList.toggle('has-looked', player.hasLooked);
-        
+
             // 清除旧徽章
             var oldBadge = info.querySelector('.dealer-badge');
             if (oldBadge) oldBadge.remove();
             info.classList.remove('dealer');
-        
+
             var oldLookedBadge = info.querySelector('.looked-badge');
             if (oldLookedBadge) oldLookedBadge.remove();
-        
+
             var oldBaoxiBadge = info.querySelector('.baoxi-badge');
             if (oldBaoxiBadge) oldBaoxiBadge.remove();
-        
+
             var isDealer = index === state.dealerIndex;
             var isBaoxi = !!player.baoxi;
-        
+
             if (isDealer) {
                 info.classList.add('dealer');
-                badge = document.createElement('div');
+                var badge = document.createElement('div');
                 badge.className = 'dealer-badge';
-                // 庄家且报喜，合并显示
                 badge.textContent = isBaoxi ? '庄|报喜' : '庄';
                 info.appendChild(badge);
             } else if (isBaoxi) {
-                // 非庄家但报喜，独立显示在左上角
                 var baoxiBadge = document.createElement('div');
                 baoxiBadge.className = 'baoxi-badge';
                 baoxiBadge.textContent = '报喜';
                 info.appendChild(baoxiBadge);
             }
-        
+
             if (player.hasLooked && player.status !== 'folded') {
                 var lookedBadge = document.createElement('div');
                 lookedBadge.className = 'looked-badge';
-                lookedBadge.textContent = '已看牌';
+                lookedBadge.textContent = '看牌';
                 info.appendChild(lookedBadge);
             }
-        
+
             info.classList.remove('winner', 'winner-anim');
-        
+
             renderCardsForPlayer(index, player, state);
         }
 
         function renderCardsForPlayer(index, player, state) {
             var container = $('cards' + index);
-        
+
             if (player.cards && player.cards.length === 3) {
                 container.innerHTML = '';
                 player.cards.forEach(function(card) {
@@ -810,7 +870,6 @@
                     if (player.status === 'folded') cardEl.style.opacity = '0.5';
                     container.appendChild(cardEl);
                 });
-                // 已删除：不再在游戏结束时显示牌型描述（如单张Q、顺子9等）
             } else {
                 container.innerHTML = '';
                 if (player.status !== 'folded' || state.phase === 'playing') {
