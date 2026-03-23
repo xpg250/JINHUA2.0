@@ -93,6 +93,11 @@ function getActivePlayers() {
     return room.players.filter(p => p.status === 'active');
 }
 
+function getPlayablePlayers() {
+    // 获取可参与游戏的玩家（状态为active或waiting）
+    return room.players.filter(p => p.status === 'active' || p.status === 'waiting');
+}
+
 function nextActiveFrom(idx) {
     for (let i = 1; i <= room.players.length; i++) {
         const ni = (idx + i) % room.players.length;
@@ -115,12 +120,15 @@ io.on('connection', (socket) => {
 function handleJoin(socket, { name }) {
     if (!room) room = createRoom();
 
+    // 【修复1】允许在waiting、playing、gameover阶段加入
     if (room.phase !== 'waiting' && room.phase !== 'playing' && room.phase !== 'gameover') {
         return socket.emit('error_msg', '房间状态异常，请稍候');
     }
 
+    // 检查是否已在房间中（重连情况）
     const existingPlayer = room.players.find(p => p.id === socket.id);
     if (existingPlayer) {
+        // 重连：更新socket id并发送当前状态
         socket.join(ROOM_ID);
         socket.emit('joined', { playerIndex: room.players.indexOf(existingPlayer) });
         const state = buildStateForPlayer(existingPlayer);
@@ -132,10 +140,12 @@ function handleJoin(socket, { name }) {
 
     if (room.hostId === null) room.hostId = socket.id;
 
+    // 【修复1】根据当前阶段设置初始状态
     let initialStatus = 'active';
     if (room.phase === 'playing') {
-        initialStatus = 'waiting';
+        initialStatus = 'waiting'; // 游戏中加入，等待下一局
     }
+    // gameover阶段加入，设为active，可以直接参与下一局
 
     const player = {
         id: socket.id,
@@ -156,6 +166,7 @@ function handleJoin(socket, { name }) {
     socket.emit('joined', { playerIndex: room.players.length - 1 });
     broadcastWaiting();
 
+    // 如果游戏正在进行中或已结束，立即向新加入的玩家广播当前游戏状态
     if (room.phase === 'playing' || room.phase === 'gameover') {
         const state = buildStateForPlayer(player);
         socket.emit('state_update', state);
@@ -168,11 +179,9 @@ function handleDisconnect(socket) {
     if (idx === -1) return;
 
     const name = room.players[idx].name;
-    const wasHost = room.hostId === socket.id;
-    const wasActive = room.players[idx].status === 'active';
-
+    const playerStatus = room.players[idx].status;
     room.players.splice(idx, 1);
-    console.log('[离开] ' + name + (wasHost ? ' (房主)' : ''));
+    console.log('[离开] ' + name + ' (状态: ' + playerStatus + ')');
 
     if (room.players.length === 0) {
         room = null;
@@ -180,32 +189,34 @@ function handleDisconnect(socket) {
     }
 
     // 更新房主
-    if (wasHost) {
+    if (room.hostId === socket.id) {
         room.hostId = room.players[0].id;
-        console.log('[房主转移] -> ' + room.players[0].name);
+        console.log('[房主转移] ' + room.players[0].name);
     }
 
-    // 调整索引
+    // 【修复2】更新lastWinner和dealerIndex索引
     if (room.lastWinner === idx) {
-        room.lastWinner = -1;
+        room.lastWinner = -1; // 赢家离开，重置
     } else if (room.lastWinner > idx) {
-        room.lastWinner--;
+        room.lastWinner--; // 调整索引
     }
 
     if (room.dealerIndex === idx) {
-        room.dealerIndex = 0;
+        room.dealerIndex = 0; // 庄家离开，重置到第一个玩家
     } else if (room.dealerIndex > idx) {
-        room.dealerIndex--;
+        room.dealerIndex--; // 调整索引
     }
 
+    // 【修复2】更新currentPlayerIndex
     if (room.currentPlayerIndex === idx) {
+        // 离开的是当前玩家，找下一个活跃玩家
         if (room.phase === 'playing' && getActivePlayers().length > 0) {
-            room.currentPlayerIndex = nextActiveFrom(0);
+            room.currentPlayerIndex = nextActiveFrom(idx > 0 ? idx - 1 : 0);
         } else {
             room.currentPlayerIndex = -1;
         }
     } else if (room.currentPlayerIndex > idx) {
-        room.currentPlayerIndex--;
+        room.currentPlayerIndex--; // 调整索引
     }
 
     if (room.phase === 'playing') {
@@ -215,16 +226,13 @@ function handleDisconnect(socket) {
         } else {
             broadcastState();
         }
+    } else {
+        broadcastWaiting();
     }
-
-    // 【关键修复】无论什么阶段，房主离开后都要广播等待状态，让新房主知道
-    broadcastWaiting();
 }
 
-// 【关键修复】broadcastWaiting 添加 phase 信息
 function broadcastWaiting() {
     io.to(ROOM_ID).emit('waiting', {
-        phase: room.phase,  // 添加当前阶段信息
         players: room.players.map(p => ({
             name: p.name,
             isHost: p.id === room.hostId,
@@ -238,6 +246,7 @@ function broadcastWaiting() {
 function handleStartGame(socket) {
     if (!room) return socket.emit('error_msg', '房间不存在');
 
+    // 【修复】计算可参与游戏的玩家数量
     const playableCount = room.players.filter(p =>
         p.status === 'active' || p.status === 'waiting' || p.status === 'folded'
     ).length;
@@ -252,6 +261,7 @@ function handleStartGame(socket) {
         room.hostId = socket.id;
     }
 
+    // 【修复2】重置所有玩家状态为active（包括folded和waiting）
     room.players.forEach(p => {
         if (p.status === 'folded' || p.status === 'waiting') {
             p.status = 'active';
@@ -268,6 +278,7 @@ function handleStartGame(socket) {
     room.deck = createDeck();
     shuffle(room.deck);
 
+    // 重置所有玩家的游戏数据
     room.players.forEach(p => {
         p.cards = [];
         p.bet = 0;
@@ -278,11 +289,13 @@ function handleStartGame(socket) {
         p.headsUpBetCount = 0;
     });
 
+    // 发牌
     room.players.forEach(p => {
         p.cards = [room.deck.pop(), room.deck.pop(), room.deck.pop()];
         p.handType = evaluateHand(p.cards);
     });
 
+    // 设置庄家
     if (room.lastWinner >= 0 && room.lastWinner < room.players.length) {
         room.dealerIndex = room.lastWinner;
     } else {
@@ -302,6 +315,8 @@ function handleStartGame(socket) {
 }
 
 function collectAnte() {
+    console.log('[收取底注] huoxiPlayerId:', room.huoxiPlayerId);
+
     if (room.huoxiPlayerId >= 0 && room.huoxiPlayerId < room.players.length) {
         const hp = room.players[room.huoxiPlayerId];
         const total = INITIAL_BASE_BET * room.players.length;
@@ -309,6 +324,7 @@ function collectAnte() {
         room.pot += total;
         room.players.forEach(p => { p.bet = INITIAL_BASE_BET; });
         addLog(hp.name, '支付所有底注' + total + '元', 'huoxi');
+        console.log('[获喜玩家支付底注]', hp.name, '支付', total, '元');
         room.huoxiPlayerId = -1;
     } else {
         room.players.forEach(p => {
@@ -342,6 +358,7 @@ function handleAction(socket, data) {
         case 'look':
             p.hasLooked = true;
             addLog(p.name, '看牌', 'look');
+            console.log('[看牌]', p.name, '当前轮次:', room.round);
             io.to(ROOM_ID).emit('player_looked', {
                 playerIndex: room.currentPlayerIndex
             });
@@ -359,6 +376,7 @@ function handleAction(socket, data) {
             if (room.round === 1 && !p.hasLooked && p.firstRoundAction) {
                 p.baoxi = true;
                 addLog(p.name, '跟注 ' + amt + '（报喜！）', 'baoxi');
+                console.log('[报喜]', p.name, '第一轮未看牌跟注，报喜成功');
             } else {
                 addLog(p.name, '跟注 ' + amt, 'call');
             }
@@ -378,6 +396,7 @@ function handleAction(socket, data) {
             if (room.round === 1 && !p.hasLooked && p.firstRoundAction) {
                 p.baoxi = true;
                 addLog(p.name, '加注 ' + amt + '（报喜！）', 'baoxi');
+                console.log('[报喜]', p.name, '第一轮未看牌加注，报喜成功');
             } else {
                 addLog(p.name, '加注 ' + amt, 'raise');
             }
@@ -445,6 +464,7 @@ function nextTurn() {
         if (room.currentPlayerIndex <= firstActiveAfterDealer) {
             room.round++;
             room.dealerActedThisRound = false;
+            console.log('[轮次递增] round:', room.round);
         }
     }
 
@@ -495,6 +515,8 @@ function forceShowdown() {
 }
 
 function checkHuoxi(winner) {
+    console.log('[获喜检查] 赢家:', winner.name, 'baoxi:', winner.baoxi, 'handType:', winner.handType?.desc);
+
     if (winner.baoxi && winner.handType &&
         (winner.handType.type === HAND_TYPES.STRAIGHT_FLUSH || winner.handType.type === HAND_TYPES.THREE_OF_KIND)) {
         const bonus = winner.handType.type === HAND_TYPES.STRAIGHT_FLUSH ? 20 : 30;
@@ -509,6 +531,7 @@ function checkHuoxi(winner) {
 
         room.huoxiPlayerId = room.players.indexOf(winner);
         addLog(winner.name, '报喜成功！获' + typeName + '喜钱' + bonus + '元', 'huoxi');
+        console.log('[获喜成功]', winner.name, '获得喜钱，下一局支付所有底注');
     }
 }
 
